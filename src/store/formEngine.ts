@@ -13,7 +13,7 @@ import { fromEntries, toEntries } from "fp-ts/Record";
 import { absurd } from "fp-ts/function";
 import { FileProxy } from "src/core/files/FileProxy";
 import { FieldDefinition } from "src/core/formDefinition";
-import { isBasicInputType, valueMeetsCondition } from "src/core/input";
+import { isBasicInputType, normalizeConditions, valueMeetsCondition } from "src/core/input";
 import { logger, type Logger } from "src/utils/Logger";
 import type { Readable, Writable } from "svelte/store";
 import { derived, get, writable } from "svelte/store";
@@ -295,10 +295,11 @@ export function makeFormEngine({
                 },
             };
             const isVisible = derived(formStore, ($form): E.Either<string, boolean> => {
+                const conditions = normalizeConditions(field.condition);
                 l.debug(
                     "condition",
                     field.name,
-                    field.condition && $form.fields[field.condition.dependencyName],
+                    conditions.length > 0 && conditions.map((c) => $form.fields[c.dependencyName]),
                 );
                 if (isBasicInputType(field.input)) {
                     if (field.input.hidden) {
@@ -306,15 +307,24 @@ export function makeFormEngine({
                     }
                 }
                 if (field.isRequired) return E.of(true);
-                const condition = field.condition;
-                if (condition === undefined) return E.of(true);
-                return pipe(
-                    $form.fields[condition.dependencyName],
-                    E.fromNullable(
-                        `Field '${condition.dependencyName}' which is a dependency of '${field.name}' does not exist`,
-                    ),
-                    E.map((f) => valueMeetsCondition(condition, O.toUndefined(f.value))),
+                if (conditions.length === 0) return E.of(true);
+                // Check that all dependency fields exist
+                const missingDependency = conditions.find(
+                    (c) => $form.fields[c.dependencyName] === undefined,
                 );
+                if (missingDependency) {
+                    return E.left(
+                        `Field '${missingDependency.dependencyName}' which is a dependency of '${field.name}' does not exist`,
+                    );
+                }
+                // All conditions must pass (AND logic)
+                const allConditionsMet = conditions.every((condition) => {
+                    const dependencyField = $form.fields[condition.dependencyName];
+                    // Already checked above that all dependency fields exist
+                    if (!dependencyField) return false;
+                    return valueMeetsCondition(condition, O.toUndefined(dependencyField.value));
+                });
+                return E.of(allConditionsMet);
             });
             return {
                 value: fieldValueStore,

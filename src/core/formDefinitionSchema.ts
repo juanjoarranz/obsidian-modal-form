@@ -31,7 +31,7 @@ export const FieldDefinitionSchema = object({
     label: optional(string()),
     description: string(),
     isRequired: optional(boolean()),
-    condition: optional(input.ConditionSchema),
+    condition: optional(input.ConditionOrConditionsSchema),
     input: InputTypeSchema,
 });
 /**

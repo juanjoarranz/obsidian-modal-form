@@ -2,7 +2,7 @@ import { input } from "@core";
 import * as v from "valibot";
 import { FieldDefinition } from "../formDefinition";
 import * as deps from "./dependentFields";
-import { ConditionSchema } from "./dependentFields";
+import { ConditionSchema, ConditionOrConditionsSchema } from "./dependentFields";
 
 describe("dependentFields", () => {
     it("should return a list of conditions available for the input type: 'text'", () => {
@@ -121,5 +121,161 @@ describe("dependentFields", () => {
             expect(deps.valueMeetsCondition(condition, value)).toBe(false);
         });
         expect.assertions(conditions.length);
+    });
+});
+
+describe("normalizeConditions", () => {
+    it("should return an empty array for undefined", () => {
+        expect(deps.normalizeConditions(undefined)).toEqual([]);
+    });
+
+    it("should return an array with the single condition for a single condition", () => {
+        const condition: input.Condition = {
+            type: "isSet",
+            dependencyName: "test-field",
+        };
+        expect(deps.normalizeConditions(condition)).toEqual([condition]);
+    });
+
+    it("should return the array as-is for an array of conditions", () => {
+        const conditions: input.Condition[] = [
+            { type: "isSet", dependencyName: "field1" },
+            { type: "isExactly", dependencyName: "field2", value: "test" },
+        ];
+        expect(deps.normalizeConditions(conditions)).toEqual(conditions);
+    });
+
+    it("should return an empty array for an empty array", () => {
+        expect(deps.normalizeConditions([])).toEqual([]);
+    });
+});
+
+describe("valuesMeetConditions", () => {
+    it("should return true for a single condition that is met", () => {
+        const condition: input.Condition = {
+            type: "isSet",
+            dependencyName: "field1",
+        };
+        const formValues = { field1: "value" };
+        expect(deps.valuesMeetConditions(condition, formValues)).toBe(true);
+    });
+
+    it("should return false for a single condition that is not met", () => {
+        const condition: input.Condition = {
+            type: "isSet",
+            dependencyName: "field1",
+        };
+        const formValues = { field1: "" };
+        expect(deps.valuesMeetConditions(condition, formValues)).toBe(false);
+    });
+
+    it("should return true when all conditions in an array are met", () => {
+        const conditions: input.Condition[] = [
+            { type: "isSet", dependencyName: "field1" },
+            { type: "isExactly", dependencyName: "field2", value: "specific" },
+            { type: "above", dependencyName: "field3", value: 10 },
+        ];
+        const formValues = {
+            field1: "value",
+            field2: "specific",
+            field3: 15,
+        };
+        expect(deps.valuesMeetConditions(conditions, formValues)).toBe(true);
+    });
+
+    it("should return false when any condition in an array is not met", () => {
+        const conditions: input.Condition[] = [
+            { type: "isSet", dependencyName: "field1" },
+            { type: "isExactly", dependencyName: "field2", value: "specific" },
+            { type: "above", dependencyName: "field3", value: 10 },
+        ];
+        // field2 does not match
+        const formValues = {
+            field1: "value",
+            field2: "wrong",
+            field3: 15,
+        };
+        expect(deps.valuesMeetConditions(conditions, formValues)).toBe(false);
+    });
+
+    it("should return false when the first condition fails", () => {
+        const conditions: input.Condition[] = [
+            { type: "isSet", dependencyName: "field1" },
+            { type: "isExactly", dependencyName: "field2", value: "specific" },
+        ];
+        const formValues = {
+            field1: "",  // not set
+            field2: "specific",
+        };
+        expect(deps.valuesMeetConditions(conditions, formValues)).toBe(false);
+    });
+
+    it("should return false when the last condition fails", () => {
+        const conditions: input.Condition[] = [
+            { type: "isSet", dependencyName: "field1" },
+            { type: "isExactly", dependencyName: "field2", value: "specific" },
+        ];
+        const formValues = {
+            field1: "value",
+            field2: "not-specific",
+        };
+        expect(deps.valuesMeetConditions(conditions, formValues)).toBe(false);
+    });
+
+    it("should return true for an empty array of conditions", () => {
+        const conditions: input.Condition[] = [];
+        const formValues = { field1: "value" };
+        expect(deps.valuesMeetConditions(conditions, formValues)).toBe(true);
+    });
+
+    it("should return false when dependency field is missing from formValues", () => {
+        const conditions: input.Condition[] = [
+            { type: "isSet", dependencyName: "nonexistent" },
+        ];
+        const formValues = { field1: "value" };
+        expect(deps.valuesMeetConditions(conditions, formValues)).toBe(false);
+    });
+});
+
+describe("ConditionOrConditionsSchema", () => {
+    it("should validate a single condition", () => {
+        const condition = { type: "isSet", dependencyName: "field1" };
+        const result = v.safeParse(ConditionOrConditionsSchema, condition);
+        expect(result.success).toBe(true);
+    });
+
+    it("should validate an array of conditions", () => {
+        const conditions = [
+            { type: "isSet", dependencyName: "field1" },
+            { type: "isExactly", dependencyName: "field2", value: "test" },
+        ];
+        const result = v.safeParse(ConditionOrConditionsSchema, conditions);
+        expect(result.success).toBe(true);
+    });
+
+    it("should validate a single-item array of conditions", () => {
+        const conditions = [{ type: "isSet", dependencyName: "field1" }];
+        const result = v.safeParse(ConditionOrConditionsSchema, conditions);
+        expect(result.success).toBe(true);
+    });
+
+    it("should validate an empty array", () => {
+        const result = v.safeParse(ConditionOrConditionsSchema, []);
+        expect(result.success).toBe(true);
+    });
+
+    it("should reject invalid condition types", () => {
+        const invalid = { type: "invalidType", dependencyName: "field1" };
+        const result = v.safeParse(ConditionOrConditionsSchema, invalid);
+        expect(result.success).toBe(false);
+    });
+
+    it("should reject arrays with invalid conditions", () => {
+        const conditions = [
+            { type: "isSet", dependencyName: "field1" },
+            { type: "invalidType", dependencyName: "field2" },
+        ];
+        const result = v.safeParse(ConditionOrConditionsSchema, conditions);
+        expect(result.success).toBe(false);
     });
 });
