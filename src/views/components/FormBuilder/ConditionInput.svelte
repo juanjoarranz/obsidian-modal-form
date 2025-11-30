@@ -86,7 +86,7 @@
             {/if}
         </FormRow>
     {/if}
-    {#if showRemove && onRemove}
+    {#if showRemove && onRemove !== undefined}
         <button class="remove-condition-btn" type="button" on:click={onRemove} aria-label="Remove condition">
             ✕
         </button>

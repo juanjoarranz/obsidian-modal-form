@@ -164,8 +164,12 @@ export function normalizeConditions(condition: ConditionOrConditions | undefined
 
 /**
  * Checks if all conditions are met by the form values.
- * For a single condition, delegates to valueMeetsCondition.
- * For an array, returns true only if ALL conditions pass (AND logic).
+ * Uses AND logic: all conditions must pass for the function to return true.
+ * 
+ * @param conditions - A single condition or array of conditions to evaluate.
+ *                     Empty arrays result in true (no conditions = all met).
+ * @param formValues - Record of field names to their current values.
+ * @returns true if all conditions are met, false otherwise.
  */
 export function valuesMeetConditions(
     conditions: ConditionOrConditions,

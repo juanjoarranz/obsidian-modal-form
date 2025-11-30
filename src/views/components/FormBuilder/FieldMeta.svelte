@@ -22,7 +22,7 @@
     $: {
         if (isConditional) {
             // Initialize with an array containing one default condition if empty
-            if (!field.condition || getConditionsArray().length === 0) {
+            if (getConditionsArray().length === 0) {
                 field.condition = [{ dependencyName: "", type: "isSet" }];
             }
         } else {
