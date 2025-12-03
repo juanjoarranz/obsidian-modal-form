@@ -20,8 +20,10 @@ const above = v.object({
     value: v.number(),
 });
 export const ConditionSchema = v.union([isSet, booleanValue, startsWith, above]);
+export const ConditionOrConditionsSchema = v.union([ConditionSchema, v.array(ConditionSchema)]);
 
 export type Condition = v.Output<typeof ConditionSchema>;
+export type ConditionOrConditions = v.Output<typeof ConditionOrConditionsSchema>;
 export type ConditionType = Condition["type"];
 
 export const ConditionEq = Eq.struct({
@@ -142,4 +144,39 @@ export function valueMeetsCondition(condition: Condition, value: unknown): boole
         default:
             return absurd(condition);
     }
+}
+
+/**
+ * Normalizes a condition or array of conditions to always return an array.
+ * If undefined, returns an empty array.
+ * If a single condition, returns an array with that condition.
+ * If already an array, returns it as-is.
+ */
+export function normalizeConditions(condition: ConditionOrConditions | undefined): Condition[] {
+    if (condition === undefined) {
+        return [];
+    }
+    if (Array.isArray(condition)) {
+        return condition;
+    }
+    return [condition];
+}
+
+/**
+ * Checks if all conditions are met by the form values.
+ * Uses AND logic: all conditions must pass for the function to return true.
+ * 
+ * @param conditions - A single condition or array of conditions to evaluate.
+ *                     Empty arrays result in true (no conditions = all met).
+ * @param formValues - Record of field names to their current values.
+ * @returns true if all conditions are met, false otherwise.
+ */
+export function valuesMeetConditions(
+    conditions: ConditionOrConditions,
+    formValues: Record<string, unknown>,
+): boolean {
+    const normalizedConditions = normalizeConditions(conditions);
+    return normalizedConditions.every((condition) =>
+        valueMeetsCondition(condition, formValues[condition.dependencyName]),
+    );
 }

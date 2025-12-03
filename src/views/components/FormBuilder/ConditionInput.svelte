@@ -9,6 +9,8 @@
     export let name: string;
     export let condition: input.Condition;
     export let onChange: (condition: input.Condition) => void;
+    export let onRemove: (() => void) | undefined = undefined;
+    export let showRemove: boolean = false;
     const model = makeModel(siblingFields, condition, onChange);
     $: conditions = model.conditionTypeOptions;
     $: conditionType = model.conditionType;
@@ -44,42 +46,71 @@
     }
 </script>
 
-<FormRow label="When field" id="sibling-field-of-{name}">
-    <select bind:value={$dependencyName} class="dropdown">
-        {#each siblingFields as field}
-            <option value={field.name}
-                >{field.name}
-                {#if field.label}
-                    ({field.label})
-                {/if}
-            </option>
-        {/each}
-    </select>
-</FormRow>
-
-{#if O.isSome($conditions)}
-    <FormRow label="Condition" id="condition-{name}">
-        <select class="dropdown" bind:value={$conditionType}>
-            {#each $conditions.value as option}
-                <option value={option}>
-                    {option}
+<div class="condition-input-wrapper">
+    <FormRow label="When field" id="sibling-field-of-{name}">
+        <select bind:value={$dependencyName} class="dropdown">
+            {#each siblingFields as field}
+                <option value={field.name}
+                    >{field.name}
+                    {#if field.label}
+                        ({field.label})
+                    {/if}
                 </option>
             {/each}
         </select>
     </FormRow>
-{/if}
-{#if O.isSome($valueField)}
-    <FormRow label="Value" id="condition-value-{name}">
-        {#if $valueField.value.type === "text"}
-            <input type="text" class="input" bind:value={textValue} />
-        {:else if $valueField.value.type === "number"}
-            <input type="number" class="input" bind:value={numberValue} />
-        {:else if $valueField.value.type === "dropdown"}
-            <select class="dropdown" bind:value={booleanValue}>
-                {#each $valueField.value.options as option}
-                    <option value={option}>{option}</option>
+
+    {#if O.isSome($conditions)}
+        <FormRow label="Condition" id="condition-{name}">
+            <select class="dropdown" bind:value={$conditionType}>
+                {#each $conditions.value as option}
+                    <option value={option}>
+                        {option}
+                    </option>
                 {/each}
             </select>
-        {/if}
-    </FormRow>
-{/if}
+        </FormRow>
+    {/if}
+    {#if O.isSome($valueField)}
+        <FormRow label="Value" id="condition-value-{name}">
+            {#if $valueField.value.type === "text"}
+                <input type="text" class="input" bind:value={textValue} />
+            {:else if $valueField.value.type === "number"}
+                <input type="number" class="input" bind:value={numberValue} />
+            {:else if $valueField.value.type === "dropdown"}
+                <select class="dropdown" bind:value={booleanValue}>
+                    {#each $valueField.value.options as option}
+                        <option value={option}>{option}</option>
+                    {/each}
+                </select>
+            {/if}
+        </FormRow>
+    {/if}
+    {#if showRemove && onRemove !== undefined}
+        <button class="remove-condition-btn" type="button" on:click={onRemove} aria-label="Remove condition">
+            ✕
+        </button>
+    {/if}
+</div>
+
+<style>
+    .condition-input-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    .remove-condition-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+        cursor: pointer;
+        color: var(--text-muted);
+        background: transparent;
+        border: 1px solid var(--background-modifier-border);
+        border-radius: 4px;
+    }
+    .remove-condition-btn:hover {
+        color: var(--text-error);
+        border-color: var(--text-error);
+    }
+</style>

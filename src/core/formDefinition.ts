@@ -115,7 +115,7 @@ export type EditableField = {
     input: EditableInput;
     folder?: string;
     options?: { value: string; label: string }[];
-    condition?: input.Condition;
+    condition?: input.Condition | input.Condition[];
 };
 
 export type EditableFormDefinition = FormDefinition & {
